@@ -2,7 +2,7 @@
 
 import os
 import urllib
-import string
+import markdown
 from BeautifulSoup import BeautifulSoup
 
 path = "/Users/matthew.finlayson/Desktop/"
@@ -36,30 +36,32 @@ def convert_month(char_month):
 		elif char_month == "Dec":
 			return "12"
 
-for link in soup.findAll(attrs={"id" : "post"}):
-	target_url = link.find('a')
-	font = link.find('font')
+for article in soup.findAll(attrs={"id" : "post"}):
+	
+	# Grab the date string, we cheat by using the font tag change to find it.
+	# We have known lengths so we slice it up and run the 3 letter month through a converter
+	font = article.find('font')
 	year = font.find('a').contents[0][13:-9]
 	day =  font.find('a').contents[0][6:-18]
 	month = convert_month(font.find('a').contents[0][9:-14])
-	title = target_url.contents[0].replace('/', '').replace('|','').replace(',','').replace('.','')
+
+	# Grab the title out of the h2 and try to clean it up. 
+	title = article.find('h2').contents[0]
+
 	title = title.replace('[','').replace(']','').replace(':','').replace('~','').replace('\'','')
 	title = title.replace('(','').replace(')','').replace('%','').replace('#','').replace('---','-').replace('--','-')
-
-	title = filter(lambda x: x in string.printable, title)
-	title = title.replace("&euro;&ldquo;", '')
-
+	
 	# The slug is the the lowercase title spaced with hyphensq!
-        
+	
 	slug = title.replace('&amp;', '').replace('?', '').replace('!', '').replace('+', '').replace('=', '').replace('.', '')
 	slug = slug.replace(' ', '-').lower().replace('/', '-').replace('---','-').replace('--','')
-
+	# We hope the post is tagged. If not we make it blank
 	try : 
-		tags = link.find(attrs={"id" : "tags"}).contents[0][13:]
+		tags = article.find(attrs={"id" : "tags"}).contents[0][13:]
 	except (NameError, AttributeError):
 		tags = ""
-
-	more_body = filter(lambda x: x in string.printable, target_url.contents[0])
+	
+	article_body = article.findAll('p')
 	
 	lines = []
 	#---------------------------------
@@ -72,8 +74,12 @@ for link in soup.findAll(attrs={"id" : "post"}):
 	lines.append("new_url: %s/%s/%s/%s/\n" % (year, month, day, slug))
 	lines.append("content_type: text/html\n")
 	lines.append("\n")
-        lines.append('<p><a href="%s">%s</a></p> <p>%s</p>\n' % (target_url['href'], target_url['href'], more_body))
-	o = open("links/%s-%s-%s-%s.txt" % (year, month, day, slug), "w")
+	for body_line in article_body:
+		lines.append("%s" % body_line)
+	o = open("articles/%s-%s-%s-%s.txt" % (year, month, day, slug), "w")
 	o.writelines(lines)
 	o.close()
+	print slug
+
 f.close()
+
